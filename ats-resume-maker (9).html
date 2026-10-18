@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Fast, private, ATS-optimized resume builder. Keyword matching, health checks, print-perfect PDF export. All data stays in your browser.">
+<title>ATS Resume Builder</title>
+<style id="pageStyle"></style>
+<style>
+:root{
+  --primary:#2563eb; --primary-dark:#1d4ed8; --bg:#f1f5f9; --card:#ffffff;
+  --text:#0f172a; --muted:#64748b; --border:#e2e8f0;
+  --green:#16a34a; --red:#dc2626; --amber:#d97706;
+  --radius:10px; --shadow:0 1px 3px rgba(15,23,42,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 18px;background:rgba(255,255,255,.93);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.brand h1{font-size:17px;font-weight:700}
+.save-note{font-size:12px;color:var(--muted);opacity:0;transition:opacity .45s}
+.save-note.show{opacity:1}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13.5px;font-weight:600;padding:7px 13px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);cursor:pointer}
+.btn .lbl-short{display:none}
+.btn .ic{display:none}
+.btn:hover{border-color:#cbd5e1;background:#f8fafc}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary-dark)}
+.btn.ghost{color:var(--muted)}
+
+/* ---------- editor ---------- */
+main{max-width:880px;margin:0 auto;padding:18px 16px 60px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+.card>h2{font-size:14px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.card>h2 .sub{font-size:11.5px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0}
+input[type=text],textarea,select{font:inherit;font-size:14px;width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+input:focus,textarea:focus,select:focus{outline:2px solid #bfdbfe;border-color:var(--primary)}
+textarea{resize:vertical;min-height:60px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1.2fr 1fr .9fr;gap:8px}
+.fld{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.mt8{margin-top:8px}
+
+/* score + chips */
+.score-row{display:flex;gap:14px;align-items:center;margin-top:12px}
+.score-num{font-size:26px;font-weight:800;min-width:76px;text-align:center;border-radius:10px;padding:6px 4px;background:#f1f5f9;color:var(--muted)}
+.score-num.good{color:#15803d;background:#dcfce7}
+.score-num.mid{color:#b45309;background:#fef3c7}
+.score-num.bad{color:#b91c1c;background:#fee2e2}
+.score-meta{flex:1;min-width:180px}
+#scoreLabel{font-size:13px;font-weight:600;margin-bottom:5px}
+.bar{height:8px;border-radius:99px;background:#e2e8f0;overflow:hidden}
+#scoreBar{height:100%;width:0;border-radius:99px;background:var(--muted);transition:width .35s,background .35s}
+#scoreBar.good{background:var(--green)}
+#scoreBar.mid{background:var(--amber)}
+#scoreBar.bad{background:var(--red)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid}
+.chip.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+.chip.miss{background:#fef2f2;border-color:#fecaca;color:#991b1b;display:inline-flex;align-items:center;gap:5px}
+.chip.miss button{font:inherit;font-size:12px;font-weight:800;border:0;background:#dc2626;color:#fff;width:16px;height:16px;border-radius:50%;cursor:pointer;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.chip.miss button:hover{background:#b91c1c}
+
+/* dynamic entries */
+.entry{border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
+.entry-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.entry-head .tag{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.entry-tools{display:flex;gap:4px}
+.icon-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:13px;color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
+.icon-btn:hover{background:#f1f5f9;color:var(--text)}
+.icon-btn.danger:hover{background:#fee2e2;color:#b91c1c;border-color:#fecaca}
+.add-btn{margin-top:4px;width:100%;padding:9px;border:1px dashed #cbd5e1;border-radius:8px;background:none;color:var(--primary);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.add-btn:hover{background:#eff6ff;border-color:var(--primary)}
+
+/* health check */
+#healthHead{font-size:13px;font-weight:700;margin-bottom:6px}
+.h-item{font-size:13px;padding:5px 0;display:flex;gap:8px;align-items:center;border-bottom:1px dashed #eef2f7}
+.h-item:last-child{border-bottom:0}
+.h-item .mk{font-weight:800;width:16px;text-align:center;flex:none}
+.h-item.ok .mk{color:var(--green)}
+.h-item.no{color:var(--muted)}
+.h-item.no .mk{color:var(--red)}
+.foot{font-size:12px;color:var(--muted);text-align:center;margin:26px 0 8px}
+.foot a{color:var(--primary);font-weight:600;text-decoration:none}
+.foot a:hover{text-decoration:underline}
+
+/* ---------- backup modal ---------- */
+.modal-backdrop{position:fixed;top:0;left:0;right:0;bottom:0;z-index:40;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:18px}
+.modal-backdrop[hidden]{display:none}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(15,23,42,.25);width:100%;max-width:640px;max-height:90vh;padding:16px 18px;display:flex;flex-direction:column}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.modal-head h3{font-size:15px;font-weight:700}
+.modal textarea{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.5;min-height:260px;white-space:pre;overflow:auto}
+.modal-actions{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* ---------- preview (on demand only) ---------- */
+#previewView{display:none}
+body[data-view="preview"] #editorView{display:none}
+body[data-view="preview"] #previewView{display:block}
+.preview-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px}
+.paper-label{font-size:13px;font-weight:600;color:var(--muted);display:flex;gap:6px;align-items:center}
+.paper-label select{width:auto;padding:5px 8px}
+.spacer{flex:1}
+.sheet-wrap{overflow-x:auto;padding-bottom:40px}
+.sheet{background:#fff;color:#111;width:8.5in;min-height:11in;padding:.65in;margin:0 auto;box-shadow:0 3px 20px rgba(15,23,42,.18);font-size:10.5pt;line-height:1.45}
+.sheet.a4{width:210mm;min-height:297mm}
+.sheet h1{font-size:22pt;line-height:1.15;margin-bottom:2pt;letter-spacing:.3px}
+.sheet .contact{font-size:9.5pt;color:#374151;margin-bottom:8pt}
+.sheet h2{font-size:11pt;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #9ca3af;padding-bottom:2pt;margin:13pt 0 6pt}
+.sheet .job{margin-bottom:9pt}
+.sheet .job-head{display:flex;justify-content:space-between;gap:10pt}
+.sheet .job-head span{font-size:9.5pt;color:#374151;white-space:nowrap}
+.sheet .job-sub{font-style:italic;color:#374151;font-size:10pt}
+.sheet ul{margin:3pt 0 0 15pt}
+.sheet li{margin-bottom:1.5pt}
+
+@media (max-width:760px){
+  .grid3,.grid2{grid-template-columns:1fr}
+  .topbar{padding:8px 12px;gap:8px}
+  .brand h1{font-size:15px}
+  .actions{gap:6px}
+  .btn{padding:6px 10px;font-size:13px}
+  .btn .lbl-long{display:none}
+  .btn .lbl-short{display:inline}
+  .btn.compact{width:34px;height:32px;padding:0;justify-content:center}
+  .btn.compact .lbl{display:none}
+  .btn.compact .ic{display:inline}
+}
+
+/* ---------- print ---------- */
+@media print{
+  body{background:#fff}
+  main{max-width:none;padding:0}
+  .topbar,#editorView,.preview-toolbar{display:none!important}
+  #previewView{display:block!important}
+  .sheet-wrap{overflow:visible;padding:0}
+  .sheet{box-shadow:none;margin:0;width:auto;min-height:auto;padding:0;border:0}
+  .modal-backdrop{display:none!important}
+}
+</style>
+</head>
+<body data-view="edit">
+
+<header class="topbar">
+  <div class="brand">
+    <h1>ATS Resume Builder</h1>
+    <span class="save-note" id="saveState"></span>
+  </div>
+  <div class="actions">
+    <button id="btnPreview" class="btn primary" type="button"><span class="lbl-long">Preview &amp; Print</span><span class="lbl-short">Preview</span></button>
+    <button id="btnClear" class="btn ghost compact" type="button" title="Clear all fields" aria-label="Clear all fields"><span class="ic" aria-hidden="true">&times;</span><span class="lbl">Clear</span></button>
+  </div>
+</header>
+
+<main>
+  <!-- ================= EDITOR ================= -->
+  <section id="editorView">
+
+    <section class="card">
+      <h2>ATS Keyword Match <span class="sub">auto-analyzes as you type</span></h2>
+      <textarea id="jobDesc" data-key="jobDesc" rows="6" placeholder="Paste the full job description here — the analyzer extracts the skills and phrases that recruiters' ATS filters scan for, then checks your resume against them."></textarea>
+      <div class="score-row">
+        <div class="score-num" id="scoreNum">—</div>
+        <div class="score-meta">
+          <div id="scoreLabel">Paste a job description above to see your match score</div>
+          <div class="bar"><div id="scoreBar"></div></div>
+        </div>
+      </div>
+      <div id="chips" class="chips"></div>
+      <p class="hint">Weighted matching: skill phrases count double, plurals and common variants are recognized. Click the red <b>+</b> next to a missing keyword to add it straight into Skills.</p>
+    </section>
+
+    <section class="card">
+      <h2>Contact</h2>
+      <div class="grid2">
+        <div><label class="fld" for="name">Full name</label><input type="text" id="name" data-key="name" placeholder="Jane Doe" autocomplete="name"></div>
+        <div><label class="fld" for="contact">Phone · email · links · location</label><input type="text" id="contact" data-key="contact" placeholder="555-123-4567 | you@email.com | linkedin.com/in/you | Austin, TX"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Professional Summary <span class="sub">3–4 sentences, mirror the job title</span></h2>
+      <textarea id="summary" data-key="summary" rows="4" placeholder="PMP-certified Senior Project Manager with 8+ years leading cross-functional software teams..."></textarea>
+    </section>
+
+    <section class="card">
+      <h2>Skills <span class="sub">hard skills first — these are what ATS scans</span></h2>
+      <textarea id="skills" data-key="skills" rows="5" placeholder="Project Management&#10;Agile &amp; Scrum&#10;Data Analysis&#10;SQL"></textarea>
+    </section>
+
+    <section class="card">
+      <h2>Work Experience <span class="sub">most recent first · quantified achievements beat duties</span></h2>
+      <div id="expList"></div>
+      <button class="add-btn" type="button" data-act="addexp">+ Add another role</button>
+    </section>
+
+    <section class="card">
+      <h2>Education</h2>
+      <div id="eduList"></div>
+      <button class="add-btn" type="button" data-act="addedu">+ Add another degree</button>
+    </section>
+
+    <section class="card">
+      <h2>Resume Health Check</h2>
+      <div id="healthHead"></div>
+      <div id="healthList"></div>
+    </section>
+
+    <p class="foot">Everything stays in your browser (localStorage) — nothing is uploaded. <a href="#" id="btnBackup" title="Show your data as JSON — copy it to save, or paste a backup to restore">Backup</a></p>
+  </section>
+
+  <!-- ================= PREVIEW (on demand) ================= -->
+  <section id="previewView">
+    <div class="preview-toolbar">
+      <button id="btnBack" class="btn" type="button">&larr; Back to editor</button>
+      <label class="paper-label">Paper
+        <select id="paperSel">
+          <option value="letter">US Letter</option>
+          <option value="a4">A4</option>
+        </select>
+      </label>
+      <span class="hint" id="pageEst"></span>
+      <span class="spacer"></span>
+      <button id="btnPrint" class="btn primary" type="button">Print / Save PDF</button>
+    </div>
+    <div class="sheet-wrap"><div class="sheet" id="sheet"></div></div>
+  </section>
+
+  <!-- ================= BACKUP MODAL (copy & paste) ================= -->
+  <div class="modal-backdrop" id="backupModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="backupTitle">
+      <div class="modal-head">
+        <h3 id="backupTitle">Backup — copy &amp; paste</h3>
+        <button type="button" class="icon-btn" id="btnModalClose" title="Close" aria-label="Close">&times;</button>
+      </div>
+      <p class="hint">Copy this JSON somewhere safe to back up your resume, or paste a previously saved backup JSON here and press <b>Apply</b> to restore it.</p>
+      <textarea id="backupJson" spellcheck="false" aria-label="Resume backup JSON"></textarea>
+      <div class="modal-actions">
+        <span class="hint" id="backupMsg"></span>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="btnApplyJson">Apply pasted JSON</button>
+        <button type="button" class="btn primary" id="btnCopyJson">Copy JSON</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<template id="tplExp">
+  <div class="entry" data-sec="experiences">
+    <div class="entry-head"><span class="tag">Role</span>
+      <div class="entry-tools">
+        <button type="button" class="icon-btn" data-act="up" title="Move up" aria-label="Move up">&uarr;</button>
+        <button type="button" class="icon-btn" data-act="down" title="Move down" aria-label="Move down">&darr;</button>
+        <button type="button" class="icon-btn danger" data-act="remove" title="Remove" aria-label="Remove">&times;</button>
+      </div>
+    </div>
+    <div class="grid3">
+      <div><label class="fld">Job title</label><input type="text" data-key="title" placeholder="Senior Project Manager"></div>
+      <div><label class="fld">Company</label><input type="text" data-key="company" placeholder="Tech Solutions Inc."></div>
+      <div><label class="fld">Dates</label><input type="text" data-key="dates" placeholder="Jan 2020 – Present"></div>
+    </div>
+    <div class="mt8">
+      <label class="fld">Achievements (one per line)</label>
+      <textarea data-key="desc" rows="4" placeholder="Led 6 cross-functional teams across 4 software projects&#10;Cut delivery time 23% by introducing CI/CD pipelines&#10;Managed a $3.2M budget with 12% cost reduction"></textarea>
+    </div>
+  </div>
+</template>
+
+<template id="tplEdu">
+  <div class="entry" data-sec="education">
+    <div class="entry-head"><span class="tag">Education</span>
+      <div class="entry-tools">
+        <button type="button" class="icon-btn danger" data-act="remove" title="Remove" aria-label="Remove">&times;</button>
+      </div>
+    </div>
+    <div class="grid3">
+      <div><label class="fld">Degree</label><input type="text" data-key="degree" placeholder="B.S. Computer Science"></div>
+      <div><label class="fld">School</label><input type="text" data-key="school" placeholder="State University"></div>
+      <div><label class="fld">Year</label><input type="text" data-key="year" placeholder="2016"></div>
+    </div>
+  </div>
+</template>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------------- helpers ---------------- */
+var $ = function(s){ return document.querySelector(s); };
+var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+var debounce = function(fn, ms){ var t; return function(){ var a=arguments, self=this; clearTimeout(t); t=setTimeout(function(){ fn.apply(self,a); }, ms); }; };
+var wc = function(s){ return (String(s).trim().match(/\S+/g)||[]).length; };
+var lines = function(s){ return String(s).split('\n').map(function(l){ return l.trim(); }).filter(Boolean); };
+
+/* ---------------- state ---------------- */
+var KEY = 'ats-resume-builder-v2';
+var blankEntry = function(){ return {title:'',company:'',dates:'',desc:''}; };
+var blankEdu   = function(){ return {degree:'',school:'',year:''}; };
+var blank = function(){ return {name:'',contact:'',summary:'',skills:'',experiences:[blankEntry()],education:[blankEdu()],jobDesc:'',paper:'letter'}; };
+
+var SAMPLE = {
+  name:'Jane Doe',
+  contact:'555-123-4567 | jane.doe@email.com | linkedin.com/in/janedoe | Austin, TX',
+  summary:'PMP-certified Senior Project Manager with 8+ years leading cross-functional software development teams. Delivered 20+ projects worth $15M combined, on time and 12% under budget. Expert in Agile/Scrum, stakeholder management, and process improvement with strong communication skills.',
+  skills:'Project Management\nAgile & Scrum\nStakeholder Management\nRisk Management\nBudget Management\nProcess Improvement\nTeam Leadership\nData Analysis\nVersion Control (Git)\nJira\nSQL Reporting',
+  experiences:[
+    { title:'Senior Project Manager', company:'Tech Solutions Inc.', dates:'Jan 2020 – Present',
+      desc:'Led 6 cross-functional teams of up to 14 engineers across 4 software development projects.\nCut average delivery time 23% by introducing CI/CD pipelines and Agile/Scrum ceremonies.\nManaged a $3.2M annual budget with 12% cost reduction while raising on-time delivery to 96%.\nDrove stakeholder management across executive leadership, customers, and vendors.' },
+    { title:'Project Manager', company:'Bright Apps LLC', dates:'Jun 2016 – Dec 2019',
+      desc:'Managed 15+ client projects end to end, from requirements gathering to release.\nIntroduced data-driven retrospectives that lifted team velocity 18% in two quarters.' }
+  ],
+  education:[ {degree:'B.S. Management Information Systems', school:'University of Texas at Austin', year:'2016'} ],
+  jobDesc:'Senior Project Manager (SaaS) — Austin, TX or Remote\n\nWe are seeking a Senior Project Manager to lead cross-functional software development squads.\n\nResponsibilities\n- Lead Agile/Scrum ceremonies including sprint planning and retrospectives\n- Own project scope, budget management, and risk management across the delivery lifecycle\n- Drive stakeholder management with executive leadership and enterprise customers\n- Champion process improvement and continuous improvement of delivery workflows\n\nRequirements\n- 5+ years of project management experience in software development or SaaS\n- PMP certification preferred\n- Proven team leadership of engineers and designers\n- Strong communication skills and problem solving\n- Comfortable with data analysis, reporting dashboards, and version control (Git)\n- Excellent time management in a fast-paced environment',
+  paper:'letter'
+};
+
+function normalize(d){
+  d = (d && typeof d==='object') ? d : {};
+  var s = function(v){ return typeof v==='string' ? v : ''; };
+  var out = blank();
+  out.name=s(d.name); out.contact=s(d.contact); out.summary=s(d.summary);
+  out.skills=s(d.skills); out.jobDesc=s(d.jobDesc);
+  out.paper = d.paper==='a4' ? 'a4' : 'letter';
+  if (Array.isArray(d.experiences) && d.experiences.length)
+    out.experiences = d.experiences.map(function(e){ return {title:s(e&&e.title),company:s(e&&e.company),dates:s(e&&e.dates),desc:s(e&&e.desc)}; });
+  if (Array.isArray(d.education) && d.education.length)
+    out.education = d.education.map(function(e){ return {degree:s(e&&e.degree),school:s(e&&e.school),year:s(e&&e.year)}; });
+  return out;
+}
+function loadState(){ try{ var raw = localStorage.getItem(KEY); return raw ? normalize(JSON.parse(raw)) : null; }catch(e){ return null; } }
+function saveNow(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); noteSaved(); }catch(e){} }
+
+var state = loadState() || JSON.parse(JSON.stringify(SAMPLE));
+
+/* ---------------- ATS matcher (phrases + synonyms + stemming) ---------------- */
+var stem = function(w){
+  return w.replace(/ies$/,'y')
+          .replace(/(sses|shes|ches|xes|zes)$/,'')
+          .replace(/e?s$/,'')
+          .replace(/e$/,'')
+          .replace(/(ing|ed)$/,'');
+};
+
+var STOP = new Set(('a,an,the,and,or,but,nor,so,yet,for,of,with,by,to,in,on,at,from,as,into,onto,about,against,between,through,during,before,after,above,below,up,down,out,off,over,under,again,further,then,once,here,there,when,where,why,how,all,any,both,each,few,more,most,other,some,such,no,not,only,own,same,than,too,very,just,also,is,are,was,were,be,been,being,am,do,does,did,doing,done,have,has,had,having,will,would,shall,should,can,could,may,might,must,i,we,our,you,your,he,him,his,she,her,it,its,they,them,their,what,which,who,whom,whose,this,that,these,those,if,because,while,until,unless,since,per,via,etc').split(','));
+
+var PHRASES = new Set(('project management,program management,product management,stakeholder management,risk management,budget management,vendor management,change management,time management,incident management,performance management,operations management,team leadership,people management,data analysis,data science,data analytics,data visualization,database management,machine learning,deep learning,computer science,software development,software engineering,web development,mobile development,application development,cloud computing,amazon web services,continuous integration,continuous delivery,continuous improvement,process improvement,business development,business analysis,business intelligence,business requirements,financial analysis,financial modeling,financial reporting,quality assurance,user experience,user interface,design systems,digital marketing,content marketing,social media,email marketing,growth marketing,product roadmap,product strategy,go to market,customer service,customer success,customer experience,customer support,technical support,account management,key performance indicators,problem solving,critical thinking,communication skills,verbal communication,written communication,public speaking,presentation skills,attention to detail,cross functional,decision making,strategic planning,agile scrum,scrum master,sprint planning,test automation,unit testing,code review,version control,site reliability,system design,distributed systems,object oriented,rest apis,microsoft excel,google analytics,supply chain,technical writing,talent acquisition,root cause,full stack,front end,back end').split(','));
+
+var SYN = {
+  'project management':['project management','managed projects','managing projects','led projects','leading projects','pmp'],
+  'program management':['program management','managed programs','program manager'],
+  'product management':['product management','product manager','managed product'],
+  'stakeholder management':['stakeholder management','stakeholders','managed stakeholders'],
+  'risk management':['risk management','mitigated risks','risk mitigation','managed risk'],
+  'budget management':['budget management','managed budget','managed budgets','budgets'],
+  'team leadership':['team leadership','led teams','led a team','led cross functional','managed teams','managed a team','team lead','leading teams'],
+  'data analysis':['data analysis','data analytics','analyzed data','analysed data','analyzing data','sql'],
+  'machine learning':['machine learning','ml models','tensorflow','pytorch','scikit learn','scikit'],
+  'software development':['software development','software engineer','developed software','sdlc'],
+  'quality assurance':['quality assurance','qa','test cases','test plans'],
+  'user experience':['user experience','ux','usability'],
+  'agile scrum':['agile scrum','agile','scrum','kanban','sprint retrospectives','sprint ceremonies'],
+  'process improvement':['process improvement','improved processes','streamlined processes','lean six sigma','six sigma'],
+  'continuous improvement':['continuous improvement','kaizen','lean','improved processes'],
+  'customer service':['customer service','customer support','supported customers'],
+  'communication skills':['communication','communicated','communicator'],
+  'problem solving':['problem solving','solved','troubleshooting','troubleshot'],
+  'attention to detail':['attention to detail','detail oriented','meticulous'],
+  'cross functional':['cross functional','across departments','multiple departments','worked with teams'],
+  'time management':['time management','prioritized','prioritizing','competing deadlines','deadlines'],
+  'product roadmap':['product roadmap','roadmaps','roadmap'],
+  'version control':['version control','git','github','gitlab','bitbucket'],
+  'financial analysis':['financial analysis','financial modeling','analyzed budgets','forecasting'],
+  'data visualization':['data visualization','dashboards','tableau','power bi','powerbi'],
+  'unit testing':['unit testing','test coverage','jest','junit','pytest'],
+  'cloud computing':['cloud computing','aws','azure','gcp','google cloud'],
+  'key performance indicators':['key performance indicators','kpis','kpi'],
+  'code review':['code review','peer reviewed','pull requests'],
+  'business intelligence':['business intelligence','bi reports','power bi','tableau'],
+  'strategic planning':['strategic planning','developed strategy','strategic roadmap','long term strategy'],
+  'public speaking':['public speaking','presented to','presentations'],
+  'go to market':['go to market','gtm strategy','launch strategy','product launches']
+};
+
+var EQUIV = [
+  ['manage','manages','managed','managing','management','manager','managers'],
+  ['analysis','analytics','analyzed','analyse','analysed','analyzing'],
+  ['develop','develops','developed','developing','development','developments','developer'],
+  ['communicate','communicates','communicated','communicating','communication','communications'],
+  ['lead','leads','led','leading','leader','leaders','leadership'],
+  ['design','designs','designed','designing','designer'],
+  ['build','builds','building','built','rebuilt'],
+  ['create','creates','created','creating','creation'],
+  ['improve','improves','improved','improving','improvement','improvements'],
+  ['test','tests','tested','testing'],
+  ['stakeholder','stakeholders'],
+  ['customer','customers','client','clients'],
+  ['financial','finance','finances','financing'],
+  ['market','markets','marketing','marketed'],
+  ['report','reports','reported','reporting'],
+  ['coordinate','coordinated','coordinating','coordination'],
+  ['train','trains','trained','training'],
+  ['deliver','delivers','delivered','delivering','delivery','deliveries']
+];
+var EQUIV_STEM = EQUIV.map(function(g){ return g.map(stem); });
+
+var norm = function(s){ return String(s).toLowerCase().replace(/[^a-z0-9+#]+/g,' ').trim(); };
+
+function resumeText(){
+  return [state.name, state.contact, state.summary, state.skills]
+    .concat(state.experiences.map(function(e){ return e.title+' '+e.company+' '+e.dates+' '+e.desc; }))
+    .concat(state.education.map(function(e){ return e.degree+' '+e.school+' '+e.year; }))
+    .join(' ');
+}
+
+function computeMatch(){
+  var jd = state.jobDesc || '';
+  if (wc(jd) < 8) return { hasJD:false, keywords:[], score:0 };
+
+  var toks = norm(jd).split(' ').filter(Boolean);
+  var seq = [], freq = Object.create(null);
+  toks.forEach(function(t){
+    if (t.length>=2 && !STOP.has(t) && !/^\d/.test(t)) { seq.push(t); freq[t]=(freq[t]||0)+1; }
+  });
+  var bg = Object.create(null), bgSeq = [];
+  for (var i=0;i<seq.length-1;i++){
+    var p = seq[i]+' '+seq[i+1];
+    if (!(p in bg)){ bg[p]=0; bgSeq.push(p); }
+    bg[p]++;
+  }
+  var phrases = bgSeq.filter(function(p){ return PHRASES.has(p) || bg[p]>=2; })
+    .sort(function(a,b){ return bg[b]-bg[a] || b.length-a.length; })
+    .slice(0,6);
+  var uni = Object.keys(freq).sort(function(a,b){ return freq[b]-freq[a] || b.length-a.length; }).slice(0,18);
+  var phraseWords = new Set();
+  phrases.forEach(function(p){ p.split(' ').forEach(function(w){ phraseWords.add(w); }); });
+  uni = uni.filter(function(u){ return !phraseWords.has(u); }).slice(0,12);
+
+  var keywords = phrases.map(function(p){ return {k:p, w:2, phrase:true}; })
+    .concat(uni.map(function(u){ return {k:u, w:1, phrase:false}; }));
+  if (!keywords.length) return { hasJD:false, keywords:[], score:0 };
+
+  var rToks = norm(resumeText()).split(' ').filter(Boolean);
+  var rStems = new Set(rToks.map(stem));
+  var rStemStr = ' ' + rToks.map(stem).join(' ') + ' ';
+  var groupOf = new Map();
+  EQUIV_STEM.forEach(function(g){ g.forEach(function(st){ groupOf.set(st,g); }); });
+
+  var total=0, got=0;
+  keywords.forEach(function(kw){
+    if (kw.phrase){
+      var variants = SYN[kw.k] || [kw.k];
+      kw.hit = variants.some(function(v){
+        return rStemStr.indexOf(' ' + v.split(' ').map(stem).join(' ') + ' ') !== -1;
+      });
+    } else {
+      var st = stem(kw.k);
+      kw.hit = rStems.has(st) || (groupOf.has(st) && groupOf.get(st).some(function(s2){ return rStems.has(s2); }));
+    }
+    total += kw.w; if (kw.hit) got += kw.w;
+  });
+  return { hasJD:true, keywords:keywords, score: total ? Math.round(100*got/total) : 0 };
+}
+
+var missingCache = [];
+function renderScore(){
+  var r = computeMatch();
+  var num=$('#scoreNum'), bar=$('#scoreBar'), label=$('#scoreLabel'), chips=$('#chips');
+  if (!r.hasJD){
+    num.textContent='—'; num.className='score-num';
+    bar.style.width='0'; bar.className='';
+    label.textContent='Paste a job description above to see your match score';
+    chips.textContent=''; missingCache=[];
+    return;
+  }
+  var cls = r.score>=80 ? 'good' : r.score>=60 ? 'mid' : 'bad';
+  num.textContent = r.score+'%'; num.className='score-num '+cls;
+  bar.style.width = r.score+'%'; bar.className = cls;
+  label.textContent = r.score>=80 ? 'Excellent match — submit with confidence.'
+    : r.score>=60 ? 'Good match — close the remaining gaps below.'
+    : r.score>=40 ? 'Fair match — add the missing keywords below.'
+    : 'Low match — rework your summary and skills.';
+  var matched = r.keywords.filter(function(k){ return k.hit; }).map(function(k){ return k.k; });
+  var missing = r.keywords.filter(function(k){ return !k.hit; }).map(function(k){ return k.k; });
+  missingCache = missing;
+  chips.innerHTML =
+    matched.slice(0,14).map(function(k){ return '<span class="chip ok">✓ '+esc(k)+'</span>'; }).join('') +
+    missing.slice(0,10).map(function(k,i){
+      return '<span class="chip miss">'+esc(k)+'<button type="button" data-add="'+i+'" title="Add to skills" aria-label="Add '+esc(k)+' to skills">+</button></span>';
+    }).join('');
+}
+
+/* ---------------- health check ---------------- */
+function skillsArr(){ return state.skills.split(/[\n,]+/).map(function(s){ return s.trim(); }).filter(Boolean); }
+function runHealth(){
+  var exps = state.experiences;
+  var filled = function(e){ return e.title.trim()||e.company.trim()||e.desc.trim(); };
+  var items = [
+    ['Name and contact details', !!state.name.trim() && !!state.contact.trim()],
+    ['Summary of 30+ words', wc(state.summary)>=30],
+    ['At least 6 skills listed', skillsArr().length>=6],
+    ['At least 2 work experiences', exps.filter(filled).length>=2],
+    ['Dates on every role', exps.every(function(e){ return !e.title.trim() || !!e.dates.trim(); })],
+    ['2+ achievement bullets per role', exps.every(function(e){ return !filled(e) || lines(e.desc).length>=2; })],
+    ['Education section filled', state.education.some(function(e){ return e.degree.trim()||e.school.trim(); })]
+  ];
+  var pass = items.filter(function(i){ return i[1]; }).length;
+  $('#healthHead').textContent = pass+' of '+items.length+' checks passed';
+  $('#healthList').innerHTML = items.map(function(i){
+    return '<div class="h-item '+(i[1]?'ok':'no')+'"><span class="mk">'+(i[1]?'✓':'✕')+'</span>'+esc(i[0])+'</div>';
+  }).join('');
+}
+
+/* ---------------- editor rendering ---------------- */
+function fillStatic(){
+  $('#name').value=state.name; $('#contact').value=state.contact; $('#summary').value=state.summary;
+  $('#skills').value=state.skills; $('#jobDesc').value=state.jobDesc; $('#paperSel').value=state.paper;
+}
+function renderEntries(){
+  var expList=$('#expList'); expList.textContent='';
+  state.experiences.forEach(function(ex,i){
+    var n = $('#tplExp').content.firstElementChild.cloneNode(true);
+    n.dataset.idx = i;
+    n.querySelector('[data-key=title]').value = ex.title;
+    n.querySelector('[data-key=company]').value = ex.company;
+    n.querySelector('[data-key=dates]').value = ex.dates;
+    n.querySelector('[data-key=desc]').value = ex.desc;
+    expList.appendChild(n);
+  });
+  var eduList=$('#eduList'); eduList.textContent='';
+  state.education.forEach(function(ed,i){
+    var n = $('#tplEdu').content.firstElementChild.cloneNode(true);
+    n.dataset.idx = i;
+    n.querySelector('[data-key=degree]').value = ed.degree;
+    n.querySelector('[data-key=school]').value = ed.school;
+    n.querySelector('[data-key=year]').value = ed.year;
+    eduList.appendChild(n);
+  });
+}
+/* ---------------- preview (lazy, on demand) ---------------- */
+function renderPreview(){
+  var skills = skillsArr();
+  var h = '<h1>'+esc(state.name.trim()||'Your Name')+'</h1>';
+  if (state.contact.trim()) h += '<p class="contact">'+esc(state.contact)+'</p>';
+  if (state.summary.trim()) h += '<section><h2>Summary</h2><p>'+esc(state.summary)+'</p></section>';
+  if (skills.length) h += '<section><h2>Skills</h2><p>'+skills.map(esc).join(' • ')+'</p></section>';
+  var exps = state.experiences.filter(function(e){ return e.title.trim()||e.company.trim()||e.desc.trim(); });
+  if (exps.length) h += '<section><h2>Experience</h2>'+exps.map(function(e){
+    return '<div class="job"><div class="job-head"><strong>'+esc(e.title)+'</strong><span>'+esc(e.dates)+'</span></div>'
+      + (e.company.trim() ? '<div class="job-sub">'+esc(e.company)+'</div>' : '')
+      + '<ul>'+lines(e.desc).map(function(l){ return '<li>'+esc(l.replace(/^- /,''))+'</li>'; }).join('')+'</ul></div>';
+  }).join('')+'</section>';
+  var edus = state.education.filter(function(e){ return e.degree.trim()||e.school.trim(); });
+  if (edus.length) h += '<section><h2>Education</h2>'+edus.map(function(e){
+    return '<div class="job"><div class="job-head"><strong>'+esc(e.degree)+'</strong><span>'+esc(e.year)+'</span></div>'
+      + (e.school.trim() ? '<div class="job-sub">'+esc(e.school)+'</div>' : '')+'</div>';
+  }).join('')+'</section>';
+  $('#sheet').innerHTML = h;
+  var words = wc(resumeText());
+  var pages = Math.max(1, words/500);
+  $('#pageEst').textContent = '≈ ' + (pages<1.15 ? '1 page' : (Math.round(pages*10)/10)+' pages') + ' · '+words+' words';
+}
+
+/* ---------------- wiring ---------------- */
+var editorView = $('#editorView');
+var schedule = debounce(function(){ saveNow(); renderScore(); runHealth(); }, 250);
+
+editorView.addEventListener('input', function(e){
+  var t = e.target, k = t.dataset && t.dataset.key;
+  if (!k) return;
+  var entry = t.closest('.entry');
+  if (entry){
+    state[entry.dataset.sec][+entry.dataset.idx][k] = t.value;
+  } else {
+    state[k] = t.value;
+  }
+  schedule();
+});
+
+editorView.addEventListener('click', function(e){
+  var qa = e.target.closest('[data-add]');
+  if (qa){
+    var kw = missingCache[+qa.dataset.add];
+    if (kw){
+      var cur = state.skills.trim();
+      state.skills = cur ? cur.replace(/[,\s]+$/,'') + '\n' + kw : kw;
+      $('#skills').value = state.skills;
+      schedule();
+    }
+    return;
+  }
+  var act = e.target.closest('[data-act]');
+  if (!act) return;
+  var a = act.dataset.act;
+  if (a==='addexp'){
+    state.experiences.push(blankEntry()); renderEntries(); schedule();
+    var last = $('#expList').lastElementChild; if (last) last.querySelector('[data-key=title]').focus();
+    return;
+  }
+  if (a==='addedu'){
+    state.education.push(blankEdu()); renderEntries(); schedule();
+    var lastE = $('#eduList').lastElementChild; if (lastE) lastE.querySelector('[data-key=degree]').focus();
+    return;
+  }
+  var entry = act.closest('.entry'); if (!entry) return;
+  var sec = entry.dataset.sec, i = +entry.dataset.idx, arr = state[sec];
+  if (a==='remove'){
+    if (arr.length>1) arr.splice(i,1); else arr[i] = (sec==='experiences') ? blankEntry() : blankEdu();
+    renderEntries(); schedule();
+  } else if (a==='up' && i>0){
+    var tmp = arr[i-1]; arr[i-1]=arr[i]; arr[i]=tmp;
+    renderEntries(); schedule();
+  } else if (a==='down' && i<arr.length-1){
+    var tmp2 = arr[i+1]; arr[i+1]=arr[i]; arr[i]=tmp2;
+    renderEntries(); schedule();
+  }
+});
+
+/* views */
+var returnToEdit = false;
+function showPreview(){ renderPreview(); document.body.dataset.view='preview'; window.scrollTo(0,0); }
+function showEditor(){ document.body.dataset.view='edit'; }
+$('#btnPreview').addEventListener('click', showPreview);
+$('#btnBack').addEventListener('click', showEditor);
+$('#btnPrint').addEventListener('click', function(){ window.print(); });
+window.addEventListener('beforeprint', function(){
+  if (document.body.dataset.view!=='preview'){ returnToEdit=true; renderPreview(); document.body.dataset.view='preview'; }
+});
+window.addEventListener('afterprint', function(){
+  if (returnToEdit){ returnToEdit=false; document.body.dataset.view='edit'; }
+});
+
+/* paper size */
+function applyPaper(){
+  var a4 = state.paper==='a4';
+  $('#sheet').classList.toggle('a4', a4);
+  $('#pageStyle').textContent = '@page{ size:'+(a4?'A4':'letter')+'; margin:0.65in; }';
+}
+$('#paperSel').addEventListener('change', function(e){ state.paper=e.target.value; applyPaper(); saveNow(); });
+
+/* clear / backup */
+/* backup modal: show JSON for copy & paste */
+var backupModal = $('#backupModal');
+function openBackup(){
+  $('#backupJson').value = JSON.stringify(state, null, 2);
+  $('#backupMsg').textContent = '';
+  backupModal.hidden = false;
+  $('#backupJson').focus();
+}
+function closeBackup(){ backupModal.hidden = true; }
+$('#btnBackup').addEventListener('click', function(e){ e.preventDefault(); openBackup(); });
+$('#btnModalClose').addEventListener('click', closeBackup);
+backupModal.addEventListener('click', function(e){ if (e.target === backupModal) closeBackup(); });
+document.addEventListener('keydown', function(e){
+  if (e.key==='Escape' && !backupModal.hidden) closeBackup();
+});
+$('#btnCopyJson').addEventListener('click', function(){
+  var ta = $('#backupJson');
+  var done = function(){
+    var msg = $('#backupMsg');
+    msg.textContent = 'Copied to clipboard';
+    setTimeout(function(){ msg.textContent=''; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value).then(done, function(){ ta.select(); document.execCommand('copy'); done(); });
+  } else {
+    ta.select(); document.execCommand('copy'); done();
+  }
+});
+$('#btnApplyJson').addEventListener('click', function(){
+  try {
+    state = normalize(JSON.parse($('#backupJson').value));
+    afterDataSwap();
+    closeBackup();
+  } catch(err){
+    alert('Could not apply: the text is not a valid resume JSON backup.');
+  }
+});
+$('#btnClear').addEventListener('click', function(){
+  if (!confirm('Clear all fields and start from scratch?')) return;
+  state = blank(); afterDataSwap();
+});
+function afterDataSwap(){ fillStatic(); renderEntries(); applyPaper(); renderScore(); runHealth(); saveNow(); }
+
+/* keyboard + saved note */
+document.addEventListener('keydown', function(e){
+  if ((e.ctrlKey||e.metaKey) && !e.shiftKey && !e.altKey && (e.key==='s'||e.key==='S')){ e.preventDefault(); saveNow(); }
+});
+var noteT;
+function noteSaved(){
+  var n = $('#saveState');
+  n.textContent='Saved'; n.classList.add('show');
+  clearTimeout(noteT);
+  noteT = setTimeout(function(){ n.classList.remove('show'); }, 1200);
+}
+
+/* ---------------- init ---------------- */
+fillStatic(); renderEntries(); applyPaper(); renderScore(); runHealth();
+})();
+</script>
+</body>
+</html>
