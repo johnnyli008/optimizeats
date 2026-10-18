@@ -4,7 +4,6 @@ A fast, private, ATS-optimized resume builder in a **single HTML file**. Paste a
 
 No installation. No accounts. No server. No tracking. Open the file and start typing.
 
----
 
 ## Features
 
